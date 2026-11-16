@@ -90,16 +90,6 @@ def _shift_park(shift: Any) -> bool | None:
         return None
 
 
-_POSITION_KEYS = ("latitude", "longitude", "coordType", "angle")
-
-
-def redact_position(value: Any) -> Any:
-    """A copy of a mapping without the keys that locate the car."""
-    if not isinstance(value, dict):
-        return value
-    return {k: v for k, v in value.items() if k not in _POSITION_KEYS}
-
-
 def view(state: Any) -> dict[str, Any]:
     """Read a vehicle state into the driving fields and the parked verdict.
 

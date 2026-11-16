@@ -438,7 +438,8 @@ Off by default. With it on, the car's coordinates stay out of Home Assistant:
   are `fix_age_s` and `coord_valid`.
 - The latitude and longitude sensors are not created, and existing ones are removed.
 - The MQTT listener, raw capture and the TeslaMate provider are refused while it is
-  on, and are left off at setup.
+  on, and are left off at setup. Settings you already saved for them are ignored (not
+  deleted) while the option is on and apply again when you turn it off.
 - ABRP keeps working: it sends to an external service you chose. `xpeng.send_navigation`
   with a destination keeps working too.
 - On the vehicle card, the Navigate tab shows `Current zone: <zone>`, current-location
@@ -454,6 +455,16 @@ triggers:
     to: Work        # the zone's friendly name; use `home` for the home zone
 ```
 
+The `triggers:` / `trigger: state` syntax needs Home Assistant 2024.10 or later. On
+older versions (the integration supports 2024.7+) use the earlier form:
+
+```yaml
+trigger:
+  - platform: state
+    entity_id: device_tracker.xpeng_<vehicle>_location
+    to: Work
+```
+
 **Scope.** The guarantee covers Home Assistant itself: the state machine, the
 recorder, the logbook and the logs. Be aware that:
 
@@ -461,7 +472,11 @@ recorder, the logbook and the logs. Be aware that:
   coordinates included, and is part of your backups.
 - Coordinates already in the recorder stay until purged. Use `recorder.purge_entities`
   for the tracker and the latitude and longitude sensors.
-- The map card and `person` trackers cannot use a zone-only tracker.
+- `person` trackers get the zone state but no map position; only the map card and the
+  `zone` automation trigger need coordinates.
+- The `heading` sensor (a bearing, not a position) is still created, and the weather
+  `sunrise`/`sunset` attributes are coarse values derived from the location.
+- ABRP is outside the guarantee: it sends to an external service you chose.
 
 ## A Better Route Planner (ABRP)
 

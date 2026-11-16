@@ -28,10 +28,25 @@ class ResolveZoneTest(unittest.TestCase):
     def test_inside_named_zone_reports_friendly_name(self):
         self.assertEqual(resolve_zone(52.1, 5.1, [HOME, WORK]), "Work")
 
-    def test_nested_zones_choose_the_smallest_containing_zone(self):
+    def test_closest_centre_wins_over_smaller_radius(self):
+        big = ("zone.city", "City", 52.0, 5.0, 2000.0, False)
+        small = ("zone.garden", "Garden", 52.0009, 5.0, 150.0, False)
+        # point is 10 m from the big zone's centre and ~ 90 m from the small one
+        self.assertEqual(resolve_zone(52.0001, 5.0, [big, small]), "City")
+        self.assertEqual(resolve_zone(52.0009, 5.0, [big, small]), "Garden")
+
+    def test_equal_distance_goes_to_the_smaller_radius(self):
         big = ("zone.city", "City", 52.0, 5.0, 2000.0, False)
         small = ("zone.garden", "Garden", 52.0, 5.0, 150.0, False)
         self.assertEqual(resolve_zone(52.0, 5.0, [big, small]), "Garden")
+        self.assertEqual(resolve_zone(52.0, 5.0, [small, big]), "Garden")
+
+    def test_point_exactly_on_the_edge_is_outside(self):
+        d = zone_match._distance_m(52.0, 5.0, 52.001, 5.0)
+        edge = ("zone.edge", "Edge", 52.0, 5.0, d, False)
+        self.assertEqual(resolve_zone(52.001, 5.0, [edge]), "not_home")
+        wider = ("zone.edge", "Edge", 52.0, 5.0, d + 0.01, False)
+        self.assertEqual(resolve_zone(52.001, 5.0, [wider]), "Edge")
 
     def test_outside_every_zone_is_not_home(self):
         self.assertEqual(resolve_zone(53.0, 6.0, [HOME, WORK]), "not_home")
@@ -47,10 +62,6 @@ class ResolveZoneTest(unittest.TestCase):
         self.assertIsNone(resolve_zone(None, 5.0, [HOME]))
         self.assertIsNone(resolve_zone(52.0, None, [HOME]))
         self.assertIsNone(resolve_zone(0, 0, [HOME]))
-
-    def test_home_wins_ties(self):
-        other = ("zone.other", "Other", 52.0, 5.0, 100.0, False)
-        self.assertEqual(resolve_zone(52.0, 5.0, [other, HOME]), "home")
 
 
 if __name__ == "__main__":

@@ -26,11 +26,13 @@ def resolve_zone(
     """Return "home", a zone's friendly name or "not_home"; None for an unusable fix."""
     if latitude is None or longitude is None or (latitude == 0 and longitude == 0):
         return None
-    best: tuple[float, bool, str] | None = None
+    best: tuple[float, float, str] | None = None
     for entity_id, name, zlat, zlon, radius, passive in zones:
-        if passive or _distance_m(latitude, longitude, zlat, zlon) > radius:
+        if passive:
             continue
-        key = (radius, entity_id != "zone.home")
-        if best is None or key < best[:2]:
-            best = (*key, "home" if entity_id == "zone.home" else name)
+        distance = _distance_m(latitude, longitude, zlat, zlon)
+        if distance >= radius:
+            continue
+        if best is None or (distance, radius) < best[:2]:
+            best = (distance, radius, "home" if entity_id == "zone.home" else name)
     return "not_home" if best is None else best[2]

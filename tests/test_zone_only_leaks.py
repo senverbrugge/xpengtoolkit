@@ -8,8 +8,8 @@ whole-frame logging, with each site's disposition:
   (Task 3, zone only) and by the REST weather fetch (``__init__._fetch_rest_data_sync``,
   an XPENG cloud request, not HA). Not written to state, logs or attributes.
 * device_tracker.py: handled in Task 3. sensor.py latitude/longitude: Task 4.
-* drive_evidence.py: FixTracker/view hold coordinates in memory; nothing logs them.
-  ``redact_position`` is the helper for any mapping that has to be shown.
+* drive_evidence.py: FixTracker/view hold coordinates in memory; nothing logs them
+  or shows them.
 * teslamate_mapping.py / teslamate_provider.py: an HTTP server serving the position
   to the LAN. Refused in the options flow and not started when zone-only is on.
 * services.py ``send_navigation``: latitude/longitude are the caller's destination
@@ -28,7 +28,6 @@ whole-frame logging, with each site's disposition:
 from __future__ import annotations
 
 import ast
-import importlib.util
 import pathlib
 import sys
 import unittest
@@ -37,16 +36,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import _component  # noqa: E402
 
 PKG = _component.component_dir()
-LAT, LON = 52.3702, 4.8952
-
-
-def _load(name):
-    spec = importlib.util.spec_from_file_location(f"zl_{name}", PKG / f"{name}.py")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[f"zl_{name}"] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
 
 def _validator():
     tree = ast.parse((PKG / "config_flow.py").read_text(encoding="utf-8"))
@@ -67,28 +56,11 @@ def _validator():
     return ns["_validate_zone_only"]
 
 
-def _floats(value):
-    if isinstance(value, float):
-        yield value
-    elif isinstance(value, dict):
-        for v in value.values():
-            yield from _floats(v)
-    elif isinstance(value, (list, tuple)):
-        for v in value:
-            yield from _floats(v)
-
-
 class ZoneOnlyLeakTests(unittest.TestCase):
-    def test_no_state_attribute_carries_coordinates_in_zone_only_mode(self):
-        evidence = _load("drive_evidence")
-        drive = {"latitude": LAT, "longitude": LON, "coordType": 1, "angle": 90.0, "speed": 0.0}
-        shown = evidence.redact_position(drive)
-        self.assertEqual(shown, {"speed": 0.0})
-        self.assertIn("latitude", drive)  # a copy, the original is untouched
-        self.assertFalse(
-            [f for f in _floats(shown) if abs(f - LAT) < 0.001 or abs(f - LON) < 0.001]
-        )
-        self.assertEqual(evidence.redact_position(None), None)
+    def test_drive_evidence_has_no_position_dump_helper_and_logs_nothing(self):
+        src = (PKG / "drive_evidence.py").read_text(encoding="utf-8")
+        self.assertNotIn("_LOGGER", src)
+        self.assertNotIn("logging", src)
 
     def test_mqtt_listener_and_capture_are_refused_in_zone_only_mode(self):
         check = _validator()

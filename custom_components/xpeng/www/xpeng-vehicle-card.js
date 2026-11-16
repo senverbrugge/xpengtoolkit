@@ -330,7 +330,7 @@
         src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(`${destLat},${destLon}`)}&zoom=14`;
         label = "Destination";
       } else return "";
-      return `<div class="panel"><div class="row"><h3>Map</h3><span class="muted">${label}</span></div><iframe class="map-frame" src="${esc(src)}" title="Google map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe><div class="inline-actions"><button class="small" type="button" data-nav-refresh>Refresh map with current location</button></div><p class="nav-note">Google's route preview. The car's built-in navigation plans its own route; this map is not sent to the car.</p></div>`;
+      return `<div class="panel"><div class="row"><h3>Map</h3><span class="muted">${label}</span></div><iframe class="map-frame" src="${esc(src)}" title="Google map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>${hasOrigin ? '<div class="inline-actions"><button class="small" type="button" data-nav-refresh>Refresh map with current location</button></div>' : ""}<p class="nav-note">${hasOrigin ? "Google's route preview." : "Google's map of the destination."} The car's built-in navigation plans its own route; this map is not sent to the car.</p></div>`;
     }
     _shareUrl(route) { return this._mapsHref(route.latitude, route.longitude); }
     async _copyText(text) {

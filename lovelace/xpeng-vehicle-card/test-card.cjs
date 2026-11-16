@@ -336,6 +336,13 @@ async function test(name,fn) {await fn();passed++;console.log(`PASS ${name}`);}
     card.setConfig({image_entity:"image.xpeng_test_vehicle_picture",navigation:true,google_maps_embed_key:"TESTKEY"});
     card._navDraft={name:"Work",latitude:"-33.9019",longitude:"151.1931"};card._tab="navigate";card._render();
     const html=card.shadowRoot.innerHTML;assert.match(html,/maps\/embed\/v1\/place/);assert.ok(html.includes("q=-33.9019%2C151.1931"));assert.ok(!html.includes("origin="));
+    assert.ok(!html.includes("Refresh map with current location"));assert.ok(!html.includes("Google's route preview"));assert.match(html,/map of the destination/);
+  });
+  await test("a map with an origin keeps the refresh button and route wording",()=>{
+    const {card}=setup();
+    card.setConfig({image_entity:"image.xpeng_test_vehicle_picture",navigation:true,google_maps_embed_key:"TESTKEY"});
+    card._navDraft={name:"Work",latitude:"-33.9019",longitude:"151.1931"};card._tab="navigate";card._render();
+    const html=card.shadowRoot.innerHTML;assert.ok(html.includes("Refresh map with current location"));assert.ok(html.includes("Google's route preview"));
   });
   await test("a missing send_navigation service is reported, not sent",async()=>{
     const {card,hass,calls}=setup();delete hass.services.xpeng;card._tab="navigate";card._navDraft={name:"Work",latitude:1,longitude:2};card._render();
