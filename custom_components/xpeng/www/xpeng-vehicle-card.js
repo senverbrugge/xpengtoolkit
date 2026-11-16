@@ -273,8 +273,11 @@
       } catch (error) { this._message = {text:error.message, error:true}; }
       this._render();
     }
+    _hasCoordinates(e) { return numeric(e?.attributes.latitude) !== null && numeric(e?.attributes.longitude) !== null; }
+    _zoneOnly(e) { return !!e && !this._hasCoordinates(e) && e.state !== "unknown"; }
     _useCarLocation() {
       const e = this._entity("location"), latitude = numeric(e?.attributes.latitude), longitude = numeric(e?.attributes.longitude);
+      if (this._zoneOnly(e)) return;
       if (latitude === null || longitude === null) { this._message = {text:"The car has not reported a location yet.", error:true}; this._render(); return; }
       const draft = this._navDraft || this._emptyNavDraft();
       this._navDraft = {...draft, name:draft.name || "Current location", latitude:String(latitude), longitude:String(longitude)};
@@ -316,13 +319,16 @@
     _routeMap(key, latitude, longitude, draft) {
       if (!key) return "";
       let src = "", label = "";
-      const destLat = numeric(draft?.latitude), destLon = numeric(draft?.longitude);
+      const destLat = numeric(draft?.latitude), destLon = numeric(draft?.longitude), hasOrigin = latitude !== null && longitude !== null;
       if (latitude !== null && longitude !== null && destLat !== null && destLon !== null) {
         src = `https://www.google.com/maps/embed/v1/directions?key=${encodeURIComponent(key)}&origin=${encodeURIComponent(`${latitude},${longitude}`)}&destination=${encodeURIComponent(`${destLat},${destLon}`)}&mode=driving`;
         label = "Route preview";
       } else if (latitude !== null && longitude !== null) {
         src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(`${latitude},${longitude}`)}&zoom=16`;
         label = "Car position";
+      } else if (!hasOrigin && destLat !== null && destLon !== null) {
+        src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(`${destLat},${destLon}`)}&zoom=14`;
+        label = "Destination";
       } else return "";
       return `<div class="panel"><div class="row"><h3>Map</h3><span class="muted">${label}</span></div><iframe class="map-frame" src="${esc(src)}" title="Google map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe><div class="inline-actions"><button class="small" type="button" data-nav-refresh>Refresh map with current location</button></div><p class="nav-note">Google's route preview. The car's built-in navigation plans its own route; this map is not sent to the car.</p></div>`;
     }
@@ -459,6 +465,7 @@
     }
     async _copyCarLocation() {
       const e = this._entity("location"), latitude = numeric(e?.attributes.latitude), longitude = numeric(e?.attributes.longitude);
+      if (this._zoneOnly(e)) return;
       if (latitude === null || longitude === null) { this._message = {text:"The car has not reported a location yet.", error:true}; this._render(); return; }
       await this._copyMessage(this._mapsHref(latitude, longitude));
     }
@@ -676,11 +683,13 @@
       const latitude = numeric(tracker?.attributes.latitude), longitude = numeric(tracker?.attributes.longitude);
       const draft = this._navDraft || this._emptyNavDraft();
       const routes = this._allRoutes();
-      const location = latitude === null || longitude === null
+      const zoneOnly = this._zoneOnly(tracker);
+      const location = zoneOnly ? `<span class="route-coords">Current zone: ${esc(tracker.state)}</span>`
+        : latitude === null || longitude === null
         ? '<span class="route-coords">Not reported yet</span>'
         : `<span class="route-coords">${latitude.toFixed(5)}, ${longitude.toFixed(5)}</span><a class="map-link" href="${esc(this._mapsHref(latitude, longitude))}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
       return `<div class="section-head"><h3>Navigation</h3><div class="section-actions"><span class="muted">${available ? "Destination push" : "Integration update required"}</span><button class="small" type="button" data-nav-refresh>Refresh</button></div></div>
-        <div class="panel"><div class="nav-current"><div><h3>Car position</h3>${location}</div>${latitude !== null && longitude !== null ? '<div class="inline-actions"><button class="small" type="button" data-nav-copy-location>Copy link</button><button class="small" type="button" data-nav-location>Use as destination</button></div>' : ""}</div></div>
+        <div class="panel"><div class="nav-current"><div><h3>Car position</h3>${location}</div>${latitude !== null && longitude !== null ? '<div class="inline-actions"><button class="small" type="button" data-nav-copy-location>Copy link</button><button class="small" type="button" data-nav-location>Use as destination</button></div>' : zoneOnly ? '<div class="inline-actions"><button class="small" type="button" data-nav-copy-location disabled>Copy link</button><button class="small" type="button" data-nav-location disabled>Use as destination</button></div>' : ""}</div></div>
         ${this._routeMap(embedKey, latitude, longitude, draft)}
         ${!embedKey ? '<p class="nav-note">Add a Google Maps Embed API <strong>browser</strong> key in the card editor to show a map and route preview. Use a key restricted to this HA URL; do not use the server Places key.</p>' : ""}
         <div class="panel"><div class="row"><h3>Send a destination</h3><span class="state">${available ? "Ready" : "Unavailable"}</span></div>

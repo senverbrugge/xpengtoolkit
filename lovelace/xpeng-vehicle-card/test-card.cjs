@@ -319,6 +319,24 @@ async function test(name,fn) {await fn();passed++;console.log(`PASS ${name}`);}
     const {card}=setup();card._useCarLocation();
     assert.equal(card._navDraft.name,"Current location");assert.equal(card._navDraft.latitude,"-33.8688");assert.equal(card._navDraft.longitude,"151.2093");
   });
+  await test("zone-only location shows the current zone",()=>{
+    const {card,put}=setup();put("device_tracker","location","home",{});card._tab="navigate";card._render();
+    const html=card.shadowRoot.innerHTML;assert.match(html,/Current zone: home/);assert.ok(!html.includes("Not reported yet"));
+    put("device_tracker","location","<b>x</b>",{});card._render();assert.ok(!card.shadowRoot.innerHTML.includes("<b>x</b>"));
+    put("device_tracker","location","unknown",{});card._render();assert.match(card.shadowRoot.innerHTML,/Not reported yet/);
+  });
+  await test("zone-only disables use-current-location",async()=>{
+    const {card,calls,put}=setup();put("device_tracker","location","home",{});card._tab="navigate";card._render();
+    assert.match(card.shadowRoot.innerHTML,/data-nav-location[^>]*disabled/);assert.match(card.shadowRoot.innerHTML,/data-nav-copy-location[^>]*disabled/);
+    card._useCarLocation();await card._copyCarLocation();
+    assert.equal(calls.length,0);assert.ok(!card._message);assert.equal(clipboard.copied.length,0);
+  });
+  await test("zone-only route map has no origin",()=>{
+    const {card,put}=setup();put("device_tracker","location","home",{});
+    card.setConfig({image_entity:"image.xpeng_test_vehicle_picture",navigation:true,google_maps_embed_key:"TESTKEY"});
+    card._navDraft={name:"Work",latitude:"-33.9019",longitude:"151.1931"};card._tab="navigate";card._render();
+    const html=card.shadowRoot.innerHTML;assert.match(html,/maps\/embed\/v1\/place/);assert.ok(html.includes("q=-33.9019%2C151.1931"));assert.ok(!html.includes("origin="));
+  });
   await test("a missing send_navigation service is reported, not sent",async()=>{
     const {card,hass,calls}=setup();delete hass.services.xpeng;card._tab="navigate";card._navDraft={name:"Work",latitude:1,longitude:2};card._render();
     assert.ok(card.shadowRoot.innerHTML.includes("does not expose"));
