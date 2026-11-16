@@ -1625,6 +1625,7 @@ class XPengOptionsFlow(OptionsFlow):
             missing = missing_cert_files(cert_dir) if cert_dir else []
             teslamate_errors = self._validate_teslamate(user_input)
             abrp_errors = self._validate_abrp(user_input)
+            zone_only_errors = self._validate_zone_only(user_input)
             if missing:
                 _LOGGER.error(
                     "Certificate directory %s is missing: %s",
@@ -1632,6 +1633,8 @@ class XPengOptionsFlow(OptionsFlow):
                     ", ".join(str(path) for path in missing),
                 )
                 errors[CONF_CERT_DIR] = "cert_files_missing"
+            elif zone_only_errors:
+                errors.update(zone_only_errors)
             elif teslamate_errors:
                 errors.update(teslamate_errors)
             elif abrp_errors:
@@ -1830,6 +1833,22 @@ class XPengOptionsFlow(OptionsFlow):
             ),
             errors=errors,
         )
+
+    def _validate_zone_only(self, user_input: Mapping[str, Any]) -> dict[str, str]:
+        """Refuse options that would publish the car's position in zone-only mode.
+
+        The MQTT listener and raw capture record whole frames, and the TeslaMate
+        provider serves coordinates over HTTP.
+        """
+        if not user_input.get(CONF_ZONE_ONLY):
+            return {}
+        if (
+            user_input.get(CONF_MQTT_LISTENER_ENABLED)
+            or user_input.get(CONF_CAPTURE_ENABLED)
+            or user_input.get(CONF_TESLAMATE_ENABLED)
+        ):
+            return {CONF_ZONE_ONLY: "zone_only_incompatible"}
+        return {}
 
     def _validate_abrp(self, user_input: Mapping[str, Any]) -> dict[str, str]:
         """Check the optional ABRP token's shape, without asking ABRP.

@@ -238,6 +238,7 @@
       "token_required": "Er is een token van minstens 8 tekens vereist: de provider is bereikbaar op het netwerk en TeslaMate verifieert met deze waarde.",
       "invalid_port": "Voer een poort tussen 1 en 65535 in.",
       "port_conflict": "Poort 8123 is de eigen HTTP-server van Home Assistant. Kies een andere poort, bijvoorbeeld 8200.",
+      "zone_only_incompatible": "'Alleen zone melden' kan niet samen met de MQTT-listener, ruwe opname of de TeslaMate-provider: die zouden de positie van de auto prijsgeven. Zet die eerst uit.",
       "invalid_abrp_token": "Dit lijkt geen ABRP-token. Plak het token dat ABRP toont voor de algemene verbinding (letters, cijfers en streepjes), of laat het veld leeg."
     }
   },

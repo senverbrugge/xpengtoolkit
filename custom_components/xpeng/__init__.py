@@ -1152,10 +1152,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # listener decodes each frame and drives the diagnostic sensors, capture
     # writes the bytes to a file and drives nothing. See capture.py for why the
     # per-frame work has to stay this small.
-    listener_enabled = entry.options.get(CONF_MQTT_LISTENER_ENABLED, False)
+    from .entity_layout import zone_only_enabled
+
+    # Zone-only mode keeps coordinates out of logs and attributes; the listener
+    # and capture would put whole frames there, so they stay off (an entry saved
+    # before the option existed may still have them on).
+    zone_only = zone_only_enabled(entry)
+    listener_enabled = entry.options.get(CONF_MQTT_LISTENER_ENABLED, False) and not zone_only
     listener_topics_raw = entry.options.get(CONF_MQTT_LISTENER_TOPICS, "")
     discovery_enabled = entry.options.get(CONF_MQTT_TOPIC_DISCOVERY, False)
-    capture_enabled = entry.options.get(CONF_CAPTURE_ENABLED, False)
+    capture_enabled = entry.options.get(CONF_CAPTURE_ENABLED, False) and not zone_only
 
     from .mqtt_client import parse_listener_topics
 
@@ -2063,7 +2069,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # port. Off unless enabled in the options; a failure to bind (port already in
     # use) is logged and must not stop the vehicle integration from working.
     hass.data[DOMAIN][entry.entry_id]["teslamate_provider"] = None
-    if entry.options.get(CONF_TESLAMATE_ENABLED):
+    if entry.options.get(CONF_TESLAMATE_ENABLED) and not zone_only_enabled(entry):
         from .teslamate_provider import (
             ProviderOptions,
             async_start_teslamate_provider,

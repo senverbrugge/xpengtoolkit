@@ -671,6 +671,7 @@ class LegacyAndOptionsTests(unittest.IsolatedAsyncioTestCase):
             config_entry=SimpleNamespace(options=stored),
             _validate_teslamate=lambda inp: {},
             _validate_abrp=lambda inp: {},
+            _validate_zone_only=lambda inp: {},
             async_create_entry=lambda **kwargs: kwargs,
         )
         result = await ns["async_step_init"](

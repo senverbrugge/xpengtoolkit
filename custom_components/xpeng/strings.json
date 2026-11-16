@@ -238,6 +238,7 @@
       "token_required": "A token of at least 8 characters is required: the provider is reachable on the network and TeslaMate authenticates with this value.",
       "invalid_port": "Enter a port between 1 and 65535.",
       "port_conflict": "Port 8123 is Home Assistant's own HTTP server. Pick another port, e.g. 8200.",
+      "zone_only_incompatible": "Report zone only cannot be combined with the MQTT listener, raw capture or the TeslaMate provider: they would expose the car's position. Turn those off first.",
       "invalid_abrp_token": "That does not look like an ABRP token. Paste the token ABRP shows for the Generic connection (letters, digits and dashes), or leave the field blank."
     }
   },
