@@ -129,6 +129,10 @@ an actual fix. Since 0.6.24, a frame whose coordinates are the car's last known
 position (`coordValid` false) no longer moves the car — the last valid position is
 kept and flagged, instead of a stale coordinate being published as a live one.
 
+With [`zone_only`](../reference/options.md#zone_only) on, the tracker's state is the
+zone (or `unknown` without a fix) and only `fix_age_s` and `coord_valid` remain, so use
+those two to judge freshness.
+
 If the position did not move **even while driving**, the frames were not arriving at
 all: XPENG's cloud push fan-out stalls while the socket still looks healthy, and
 `Last data update` will be stale too. Enable debug logging for

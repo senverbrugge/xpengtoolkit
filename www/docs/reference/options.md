@@ -37,6 +37,7 @@ directory (see [Certificate directory](#certificate-directory)).
 | `tyre_pressure_unit` | Tyre pressure unit | Home Assistant unit system | Home Assistant unit system / kPa / psi / bar |
 | `iccid` | TBox SIM ICCID | empty | free text, diagnostic only |
 | `usable_battery_kwh` | Usable battery capacity (kWh) | `87.5` | `10`–`150` |
+| `zone_only` | Report zone only | off | on / off |
 | `abrp_token` | ABRP user token | empty (off) | the token ABRP shows for this car, or empty |
 
 Ranges are the `vol.Range(...)` bounds enforced in `config_flow.py`, and the help
@@ -425,6 +426,42 @@ except that the optional ABRP push sends it as the pack capacity (see
 [A Better Route Planner](#a-better-route-planner-abrp)). The
 estimate is also bounded per hour and per step in the coordinator so that a
 mis-set value cannot produce an absurd reading.
+
+## Privacy
+
+### `zone_only`
+
+Off by default. With it on, the car's coordinates stay out of Home Assistant:
+
+- `device_tracker.xpeng_<vehicle>_location` reports the zone as its state: `home`, a
+  zone's friendly name, `not_home`, or `unknown` without a fix. Its only attributes
+  are `fix_age_s` and `coord_valid`.
+- The latitude and longitude sensors are not created, and existing ones are removed.
+- The MQTT listener, raw capture and the TeslaMate provider are refused while it is
+  on, and are left off at setup.
+- ABRP keeps working: it sends to an external service you chose. `xpeng.send_navigation`
+  with a destination keeps working too.
+- On the vehicle card, the Navigate tab shows `Current zone: <zone>`, current-location
+  actions are disabled and the map is drawn without an origin.
+
+**The `zone` trigger stops working.** Home Assistant's `zone` trigger needs coordinates
+on the entity. Use a `state` trigger on the tracker instead:
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: device_tracker.xpeng_<vehicle>_location
+    to: Work        # the zone's friendly name; use `home` for the home zone
+```
+
+**Scope.** The guarantee covers Home Assistant itself: the state machine, the
+recorder, the logbook and the logs. Be aware that:
+
+- The persisted state cache `.storage/xpeng_state_<vin>` still holds the last frame,
+  coordinates included, and is part of your backups.
+- Coordinates already in the recorder stay until purged. Use `recorder.purge_entities`
+  for the tracker and the latitude and longitude sensors.
+- The map card and `person` trackers cannot use a zone-only tracker.
 
 ## A Better Route Planner (ABRP)
 
