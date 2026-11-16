@@ -9,7 +9,10 @@ from homeassistant.components.device_tracker.const import SourceType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    TrackStates,
+    async_track_state_change_filtered,
+)
 
 from .const import DOMAIN
 from .coordinator import XPengDataCoordinator
@@ -71,16 +74,17 @@ class XPengDeviceTracker(XPengEntity, TrackerEntity):
     async def async_added_to_hass(self) -> None:
         """Follow zone edits, since the reported zone depends on them."""
         await super().async_added_to_hass()
+        if not zone_only_enabled(self._entry):
+            return
 
         @callback
         def _zone_changed(event: Event) -> None:
             self.async_write_ha_state()
 
-        zone_ids = [s.entity_id for s in self.hass.states.async_all("zone")]
-        if zone_ids:
-            self.async_on_remove(
-                async_track_state_change_event(self.hass, zone_ids, _zone_changed)
-            )
+        tracker = async_track_state_change_filtered(
+            self.hass, TrackStates(False, set(), {"zone"}), _zone_changed
+        )
+        self.async_on_remove(tracker.async_remove)
 
     @property
     def location_name(self) -> str | None:

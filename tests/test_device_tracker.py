@@ -30,7 +30,8 @@ def _properties(*names, **injected):
     nodes = [
         node
         for node in TRACKER.body
-        if isinstance(node, ast.FunctionDef) and node.name in names
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name in names
     ]
     module = ast.Module(
         body=[
@@ -114,6 +115,66 @@ class ZoneOnlyTests(unittest.TestCase):
 
     def test_unknown_fix_gives_no_location_name(self):
         self.assertIsNone(_get("location_name", Stub(True, None)))
+
+    def test_a_non_home_zone_gives_its_friendly_name(self):
+        zones = [*ZONES, ("zone.work", "Work", 53.0, 6.0, 50.0, False)]
+        ns = _properties(
+            "location_name", zone_only_enabled=_enabled,
+            resolve_zone=resolve_zone, _zones=lambda hass: zones,
+        )
+        self.assertEqual(ns["location_name"].fget(Stub(True, (53.0, 6.0))), "Work")
+
+    def test_one_filtered_listener_covers_all_zone_changes(self):
+        import asyncio
+
+        calls = {}
+
+        class Tracker:
+            def async_remove(self):
+                pass
+
+        def track(hass, track_states, action):
+            calls["states"] = track_states
+            return Tracker()
+
+        class Base:
+            async def async_added_to_hass(self):
+                pass
+
+        node = next(
+            n for n in TRACKER.body
+            if isinstance(n, ast.AsyncFunctionDef) and n.name == "async_added_to_hass"
+        )
+        cls = ast.ClassDef(
+            name="Host", bases=[ast.Name("Base", ast.Load())], keywords=[],
+            body=[node], decorator_list=[], type_params=[],
+        )
+        ns = {
+            "Base": Base, "zone_only_enabled": _enabled,
+            "TrackStates": lambda *a: a, "async_track_state_change_filtered": track,
+            "callback": lambda f: f, "Event": object,
+        }
+        exec(compile(ast.fix_missing_locations(ast.Module([cls], [])), "<t>", "exec"), ns)
+
+        class Host(ns["Host"]):
+            hass = object()
+
+            def __init__(self, on):
+                self._entry = on
+                self.removers = []
+
+            def async_on_remove(self, fn):
+                self.removers.append(fn)
+
+        host = Host(True)
+        asyncio.run(host.async_added_to_hass())
+        self.assertEqual(calls["states"], (False, set(), {"zone"}))
+        self.assertEqual(len(host.removers), 1)
+
+        calls.clear()
+        off = Host(False)
+        asyncio.run(off.async_added_to_hass())
+        self.assertEqual((calls, off.removers), ({}, []))
 
     def test_option_off_is_unchanged(self):
         stub = Stub(False)
