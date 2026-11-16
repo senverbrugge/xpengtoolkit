@@ -175,6 +175,7 @@ CONF_TESLAMATE_TOKEN: Final = "teslamate_provider_token"
 # default: the token identifies one ABRP user AND one vehicle, so there is
 # nothing sensible to guess or mint here.
 CONF_ABRP_TOKEN: Final = "abrp_token"
+CONF_ZONE_ONLY: Final = "zone_only"
 
 # Defaults
 DEFAULT_SCAN_INTERVAL: Final = 60

@@ -11,6 +11,7 @@ from .command_policy import (
 )
 
 CONF_LEGACY_ENTITIES = "legacy_entities"
+CONF_ZONE_ONLY = "zone_only"
 
 # Stable data interfaces used by evcc's Home Assistant vehicle template.
 # A climate entity reports an HVAC mode, while evcc's climater expects a
@@ -119,6 +120,11 @@ def legacy_entities_enabled(entry) -> bool:
     """Keep existing entities unless an owner deliberately selects compact mode."""
     options = getattr(entry, "options", {}) or {}
     return bool(options.get(CONF_LEGACY_ENTITIES, getattr(entry, "version", 1) < 2))
+
+
+def zone_only_enabled(entry) -> bool:
+    options = getattr(entry, "options", {}) or {}
+    return bool(options.get(CONF_ZONE_ONLY, False))
 
 
 def include_legacy_entity(entry, policy, platform: str, key: str) -> bool:

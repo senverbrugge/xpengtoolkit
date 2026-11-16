@@ -41,7 +41,7 @@ from .command_policy import (
     PRESET_SAFE,
     SELECTABLE_PRESETS,
 )
-from .entity_layout import CONF_LEGACY_ENTITIES, legacy_entities_enabled
+from .entity_layout import CONF_LEGACY_ENTITIES, CONF_ZONE_ONLY, legacy_entities_enabled
 from .display_units import (
     CONF_TYRE_PRESSURE_UNIT,
     DEFAULT_TYRE_PRESSURE_UNIT,
@@ -1690,6 +1690,10 @@ class XPengOptionsFlow(OptionsFlow):
                     ): bool,
                     vol.Optional(
                         CONF_LEGACY_ENTITIES, default=current[CONF_LEGACY_ENTITIES]
+                    ): bool,
+                    vol.Optional(
+                        CONF_ZONE_ONLY,
+                        default=bool(current.get(CONF_ZONE_ONLY, False)),
                     ): bool,
                     vol.Optional(
                         CONF_CHARGE_PORT_CONTROLS,
