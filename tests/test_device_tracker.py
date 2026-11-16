@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 import pathlib
 import sys
+import time
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -24,7 +25,7 @@ TRACKER = next(
 )
 
 
-def _properties(*names):
+def _properties(*names, **injected):
     """Execute the real property bodies without importing Home Assistant."""
     nodes = [
         node
@@ -42,18 +43,99 @@ def _properties(*names):
         ],
         type_ignores=[],
     )
-    namespace: dict = {}
+    namespace: dict = {"time": time, **injected}
     exec(compile(ast.fix_missing_locations(module), "<device_tracker>", "exec"), namespace)
     return namespace
 
 
+def _enabled(entry):
+    return bool(entry)
+
+
+_zone_ns: dict = {}
+exec(
+    compile(
+        (_component.component_dir() / "zone_match.py").read_text(encoding="utf-8"),
+        "zone_match",
+        "exec",
+    ),
+    _zone_ns,
+)
+resolve_zone = _zone_ns["resolve_zone"]
+
+ZONES = [("zone.home", "Home", 52.0, 5.0, 100.0, False)]
+
+
+class Fix:
+    def __init__(self, position, valid=True, age=3.2):
+        self.position = position
+        self.coord_valid = valid
+        self._age = age
+
+    def age_seconds(self, now):
+        return self._age
+
+
+class Stub:
+    hass = None
+
+    def __init__(self, zone_only, position=(52.0, 5.0)):
+        self._entry = zone_only
+        self.coordinator = type("C", (), {"gps_fix": Fix(position)})()
+
+    def _get_nested_value(self, path):
+        return {"speed": "12.34", "angle": 90, "coordType": "wgs84"}[path.rsplit(".", 1)[1]]
+
+
+def _props():
+    return _properties(
+        "latitude", "longitude", "course", "extra_state_attributes", "location_name",
+        zone_only_enabled=_enabled, resolve_zone=resolve_zone, _zones=lambda hass: ZONES,
+    )
+
+
+def _get(name, stub):
+    return _props()[name].fget(stub)
+
+
+class ZoneOnlyTests(unittest.TestCase):
+    def test_zone_only_hides_position_attributes(self):
+        attrs = _get("extra_state_attributes", Stub(True))
+        self.assertEqual(set(attrs), {"fix_age_s", "coord_valid"})
+
+    def test_zone_only_latitude_longitude_course_are_none(self):
+        stub = Stub(True)
+        for name in ("latitude", "longitude", "course"):
+            self.assertIsNone(_get(name, stub), name)
+
+    def test_zone_only_location_name_is_the_zone(self):
+        self.assertEqual(_get("location_name", Stub(True)), "home")
+        self.assertEqual(_get("location_name", Stub(True, (10.0, 10.0))), "not_home")
+
+    def test_unknown_fix_gives_no_location_name(self):
+        self.assertIsNone(_get("location_name", Stub(True, None)))
+
+    def test_option_off_is_unchanged(self):
+        stub = Stub(False)
+        self.assertEqual(_get("latitude", stub), 52.0)
+        self.assertEqual(_get("longitude", stub), 5.0)
+        self.assertEqual(_get("course", stub), 90.0)
+        self.assertEqual(
+            set(_get("extra_state_attributes", stub)),
+            {"speed", "bearing", "coord_type", "coord_valid", "fix_age_s"},
+        )
+        self.assertIsNone(_get("location_name", stub))
+
+
 class CourseTests(unittest.TestCase):
     def _course(self, angle):
-        getter = _properties("course")["course"]
+        getter = _properties("course", zone_only_enabled=_enabled)["course"]
         self.assertIsInstance(getter, property)
         requested = []
 
         class Stub:
+            _entry = None
+
             def _get_nested_value(self, path):
                 requested.append(path)
                 return angle
