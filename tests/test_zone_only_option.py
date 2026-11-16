@@ -52,5 +52,57 @@ class ZoneOnlyOptionTests(unittest.TestCase):
         )
 
 
+DESCRIPTIONS = [SimpleNamespace(key=k) for k in ("latitude", "longitude", "range")]
+
+
+class ZoneOnlySensorTests(unittest.TestCase):
+    def test_sensor_setup_skips_latitude_and_longitude_when_zone_only(self):
+        kept = layout.sensor_descriptions(SimpleNamespace(options={"zone_only": True}), DESCRIPTIONS)
+        self.assertEqual([d.key for d in kept], ["range"])
+
+    def test_sensor_setup_keeps_them_when_off(self):
+        kept = layout.sensor_descriptions(SimpleNamespace(options={}), DESCRIPTIONS)
+        self.assertEqual(len(kept), 3)
+
+    def test_registry_cleanup_removes_only_the_two_sensors(self):
+        records = {
+            "sensor.lat": SimpleNamespace(unique_id="xpeng_V_latitude", config_entry_id="e"),
+            "sensor.lon": SimpleNamespace(unique_id="xpeng_V_longitude", config_entry_id="e"),
+            "sensor.range": SimpleNamespace(unique_id="xpeng_V_range", config_entry_id="e"),
+        }
+
+        class Registry:
+            def async_get_entity_id(self, domain, platform, uid):
+                return next((k for k, v in records.items() if v.unique_id == uid), None)
+
+            def async_get(self, eid):
+                return records.get(eid)
+
+            def async_remove(self, eid):
+                del records[eid]
+
+        ha = types.ModuleType("homeassistant")
+        helpers = types.ModuleType("homeassistant.helpers")
+        er = types.ModuleType("homeassistant.helpers.entity_registry")
+        er.async_get = lambda hass: Registry()
+        ha.helpers, helpers.entity_registry = helpers, er
+        saved = {n: sys.modules.get(n) for n in (ha.__name__, helpers.__name__, er.__name__)}
+        sys.modules.update({"homeassistant": ha, "homeassistant.helpers": helpers,
+                            "homeassistant.helpers.entity_registry": er})
+        try:
+            off = SimpleNamespace(options={}, entry_id="e")
+            layout.remove_zone_only_sensors(object(), off, "V")
+            self.assertEqual(len(records), 3)
+            on = SimpleNamespace(options={"zone_only": True}, entry_id="e")
+            layout.remove_zone_only_sensors(object(), on, "V")
+            self.assertEqual(list(records), ["sensor.range"])
+        finally:
+            for n, m in saved.items():
+                if m is None:
+                    sys.modules.pop(n, None)
+                else:
+                    sys.modules[n] = m
+
+
 if __name__ == "__main__":
     unittest.main()

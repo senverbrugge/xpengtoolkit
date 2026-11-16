@@ -2101,8 +2101,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Compact mode is integration-level: seed renamed controller IDs and retire
     # their old duplicate entries before platforms register the new layout.
-    from .entity_layout import prepare_compact_registry
+    from .entity_layout import prepare_compact_registry, remove_zone_only_sensors
     prepare_compact_registry(hass, entry, coordinator.vin, coordinator.command_policy)
+    remove_zone_only_sensors(hass, entry, coordinator.vin)
 
     # 8. Forward platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

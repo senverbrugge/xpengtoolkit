@@ -127,6 +127,31 @@ def zone_only_enabled(entry) -> bool:
     return bool(options.get(CONF_ZONE_ONLY, False))
 
 
+ZONE_ONLY_HIDDEN_SENSORS = ("latitude", "longitude")
+
+
+def sensor_descriptions(entry, descriptions):
+    if not zone_only_enabled(entry):
+        return list(descriptions)
+    return [d for d in descriptions if d.key not in ZONE_ONLY_HIDDEN_SENSORS]
+
+
+def remove_zone_only_sensors(hass, entry, vin: str) -> None:
+    """Drop this entry's coordinate sensors once the owner reports zone only."""
+    if not zone_only_enabled(entry):
+        return
+    from homeassistant.helpers import entity_registry as er
+
+    registry = er.async_get(hass)
+    for key in ZONE_ONLY_HIDDEN_SENSORS:
+        old_id = registry.async_get_entity_id("sensor", "xpeng", f"xpeng_{vin}_{key}")
+        if old_id is None:
+            continue
+        old = registry.async_get(old_id)
+        if old is not None and old.config_entry_id == entry.entry_id:
+            registry.async_remove(old_id)
+
+
 def include_legacy_entity(entry, policy, platform: str, key: str) -> bool:
     """Retain raw state when its replacement is disabled by command policy."""
     if (platform, key) in EVCC_ENTITIES:

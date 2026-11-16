@@ -28,7 +28,7 @@ from .display_units import (
     suggested_tyre_pressure_unit,
 )
 from .entity import XPengEntity
-from .entity_layout import include_legacy_entity
+from .entity_layout import include_legacy_entity, sensor_descriptions
 from .command_policy import default_policy
 from .xpeng_errors import command_response_message
 from .vin_descriptor import mask_vin
@@ -78,7 +78,7 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = [
         XPengSensor(coordinator, description, tyre_pressure_unit)
-        for description in SENSOR_DESCRIPTIONS
+        for description in sensor_descriptions(entry, SENSOR_DESCRIPTIONS)
         if include_legacy_entity(
             entry,
             getattr(coordinator, "command_policy", None) or default_policy(),
